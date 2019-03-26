@@ -21,13 +21,15 @@
 #include <QTimer>
 #include <stack>
 
+
 #include "camera.h"
 #include "meshLoader.h"
 #include "shader.h"
+#include "grid.h"
 
 class Viewer : public QGLWidget {
  public:
-  Viewer(char *filename,
+  Viewer(
 	 const QGLFormat &format=QGLFormat::defaultFormat());
   ~Viewer();
   
@@ -51,7 +53,8 @@ class Viewer : public QGLWidget {
   QTimer        *_timer;    // timer that controls the animation
   unsigned int   _currentshader; // current shader index
 
-  Mesh   *_mesh;   // the mesh
+ // Mesh   *_mesh;   // the mesh
+  Grid   *_grid;
   Camera *_cam;    // the camera
 
   glm::vec3 _light; // light direction
@@ -63,6 +66,13 @@ class Viewer : public QGLWidget {
 
   GLuint _vao;
   GLuint _buffers[3];
+  GLuint _vaoTerrain;
+  GLuint _vaoQuad;
+  GLuint _terrain[2];
+  GLuint _quad;
+  GLuint _fbo;
+
+
 };
 
 #endif // VIEWER_H
