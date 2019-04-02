@@ -42,18 +42,17 @@ class Viewer : public QGLWidget {
   virtual void mouseMoveEvent(QMouseEvent *me);
 
  private:
-  void createVAO();
+  void createVAOCarre(); //AJOUTE
+  void createVAOTerrain(); //AJOUTE
   void deleteVAO();
   void drawVAOCarre();
-  void drawVAOPerlin();
   void drawVAO();
 
   void createShaders();
-  void enableShader(unsigned int shader=0);
+  void enableShaderPerlin();
   void disableShader();
 
   QTimer        *_timer;    // timer that controls the animation
-  unsigned int   _currentshader; // current shader index
   
 
  // Mesh   *_mesh;   // the mesh
@@ -68,7 +67,7 @@ class Viewer : public QGLWidget {
   std::vector<Shader *>    _shaders;           // all the shaders 
 
   GLuint _vao;
-  GLuint _buffers[3];
+  //GLuint _buffers[3];
   GLuint _vaoTerrain;
   GLuint _vaoQuad;
   GLuint _terrain[2];

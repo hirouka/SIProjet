@@ -11,7 +11,6 @@ using namespace std;
 Viewer::Viewer(const QGLFormat &format)
   : QGLWidget(format),
     _timer(new QTimer(this)),
-    _currentshader(0),
     _light(glm::vec3(0,0,1)),
     _mode(false) {
 
@@ -51,16 +50,29 @@ Viewer::~Viewer() {
 
 }*/
 //-----------------------------------------------
-//Creation de notre géométrie de notre TERRAIN (la grille)
-void Viewer::createVAO() {
+//Creation de notre géométrie de notre CARRE
+void Viewer::createVAOCarre() {
 
   const GLfloat quadData[] = {
     -1.0f,-1.0f,0.0f, 1.0f,-1.0f,0.0f, -1.0f,1.0f,0.0f, -1.0f,1.0f,0.0f, 1.0f,-1.0f,0.0f, 1.0f,1.0f,0.0f };
 
-  glGenBuffers(2,_terrain);
   glGenBuffers(1,&_quad);
-  glGenVertexArrays(1,&_vaoTerrain);
   glGenVertexArrays(1,&_vaoQuad);
+
+  // create the VBO associated with the screen quad
+  glBindVertexArray(_vaoQuad);
+  glBindBuffer(GL_ARRAY_BUFFER,_quad); // vertices
+  glBufferData(GL_ARRAY_BUFFER, sizeof(quadData),quadData,GL_STATIC_DRAW);
+  glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void *)0);
+  glEnableVertexAttribArray(0);
+
+}
+//-----------------------------------------------
+//Creation de notre géométrie de notre TERRAIN (la grille)
+void Viewer::createVAOTerrain() {
+
+  glGenBuffers(2,_terrain);
+  glGenVertexArrays(1,&_vaoTerrain);
 
   // create the VBO associated with the grid (the terrain)
   glBindVertexArray(_vaoTerrain);
@@ -70,14 +82,6 @@ void Viewer::createVAO() {
   glEnableVertexAttribArray(0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,_terrain[1]); // indices
   glBufferData(GL_ELEMENT_ARRAY_BUFFER,_grid->nbFaces()*3*sizeof(int),_grid->faces(),GL_STATIC_DRAW);
-
-  // create the VBO associated with the screen quad
-  glBindVertexArray(_vaoQuad);
-  glBindBuffer(GL_ARRAY_BUFFER,_quad); // vertices
-  glBufferData(GL_ARRAY_BUFFER, sizeof(quadData),quadData,GL_STATIC_DRAW);
-  glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void *)0);
-  glEnableVertexAttribArray(0);
-
 }
 //-----------------------------------------------
 void Viewer::deleteVAO() {
@@ -95,13 +99,6 @@ void Viewer::drawVAOCarre() {
   glDrawArrays(GL_TRIANGLES, 0,6);
   glBindVertexArray(0); //On dissocie le VAO à la géométrie
 }
-//-----------------------------------------------
-//INUTILE POUR L'INSTANT
-void Viewer::drawVAOPerlin() { 
-  glBindVertexArray(_vaoQuad); //On va associer un VAO à notre future géométrie
-  glDrawElements(GL_TRIANGLES,2,GL_UNSIGNED_INT,(void *)0); //On va dessiner 2 triangles ici
-  glBindVertexArray(0); //On dissocie le VAO à la géométrie
-}
 
 //-----------------------------------------------
 //On va créer nos shaders, ici faut ajouter noise.vert/frag
@@ -109,31 +106,16 @@ void Viewer::createShaders() {
   _vertexFilenames.push_back("shaders/noise.vert");
   _fragmentFilenames.push_back("shaders/noise.frag");
 }
+
 //-----------------------------------------------
 //Fonction à priori useless ? (permet de passer des variables à nos shaders)
-void Viewer::enableShader(unsigned int shader) {
+void Viewer::enableShaderPerlin() {
   // current shader ID 
-  GLuint id = _shaders[shader]->id(); 
-
-  // activate the current shader 
+  GLuint id = _shaders[0]->id(); 
   glUseProgram(id);
 
-  // send the model-view matrix 
-  //glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(_cam->mdvMatrix()[0][0]));
-
-  // send the projection matrix 
-  //glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(_cam->projMatrix()[0][0]));
-
-  // send the normal matrix (top-left 3x3 transpose(inverse(MDV))) 
-  //glUniformMatrix3fv(glGetUniformLocation(id,"normalMat"),1,GL_FALSE,&(_cam->normalMatrix()[0][0]));
-
-  // send a light direction (defined in camera space)
-  // TODO (use the variable _light)
-    //glUniform3f(glGetUniformLocation(id,"light"),_light[0],_light[1],_light[2]);
-
-
 }
-
+//-----------------------------------------------
 void Viewer::disableShader() {
   // desactivate all shaders 
   glUseProgram(0);
@@ -143,8 +125,8 @@ void Viewer::disableShader() {
 //Création de la scène
 void Viewer::paintGL() {
   glViewport(0,0,512,512); //ETAPE 1.1 : Créer la fenêtre (viewport) qui a affichera la texture
-  glClear(GL_COLOR_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
-  enableShader(_currentshader); //Active le shader n°0 (celui de Perlin)
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
+  enableShaderPerlin();
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders 
  
@@ -246,10 +228,6 @@ void Viewer::keyPressEvent(QKeyEvent *ke) {
     }
   }
 
-  // space: next shader
-  if(ke->key()==Qt::Key_Space) {
-    _currentshader = (_currentshader+1)%_shaders.size();
-  }
 
   updateGL();
 }
@@ -284,8 +262,12 @@ void Viewer::initializeGL() {
     _shaders[i]->load(_vertexFilenames[i].c_str(),_fragmentFilenames[i].c_str());
   }
 
+//-----------------------------------------------
+//A MODIFIER
+
   // VAO creation 
-  createVAO();
+  createVAOCarre();
+//-----------------------------------------------
 
   // starts the timer 
   _timer->start();
