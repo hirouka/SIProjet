@@ -42,14 +42,17 @@ class Viewer : public QGLWidget {
   virtual void mouseMoveEvent(QMouseEvent *me);
 
  private:
-  void createVAOCarre(); //AJOUTE
-  void createVAOTerrain(); //AJOUTE
+ void createFBOPerlin(); //AJOUTE E1.2
+  void createVAOCarre(); //AJOUTE E1.1
+  void createVAOTerrain(); //AJOUTE E1.1
   void deleteVAO();
+  void deleteFBO(); //AJOUTE E1.2
   void drawVAOCarre();
   void drawVAO();
 
   void createShaders();
   void enableShaderPerlin();
+  void enableShaderVerifFBO();
   void disableShader();
 
   QTimer        *_timer;    // timer that controls the animation
@@ -64,15 +67,16 @@ class Viewer : public QGLWidget {
 
   std::vector<std::string> _vertexFilenames;   // all vertex filenames
   std::vector<std::string> _fragmentFilenames; // all fragment filenames
-  std::vector<Shader *>    _shaders;           // all the shaders 
+  std::vector<Shader *>    _shaders;           // all the shaders
 
   GLuint _vao;
-  //GLuint _buffers[3];
   GLuint _vaoTerrain;
   GLuint _vaoQuad;
   GLuint _terrain[2];
   GLuint _quad;
-  GLuint _fbo;
+
+  GLuint _texPerlin;
+  GLuint _fbo; //AJOUTE E1.2
 
 
 };

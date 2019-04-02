@@ -36,19 +36,40 @@ Viewer::~Viewer() {
   }
 
   deleteVAO();
-  //deleteFBO();
+  deleteFBO();
 
 }
-/*void Viewer::initFBO() {
- //A COMPLETER
-}*/
 
-/*void Viewer::createFBO() {
-  // Ids needed for the FBO and associated textures 
-  glGenFramebuffers(1,&_fbo);
-  glGenTextures(1,&_rendNormalId);
+//-----------------------------------------------
+void Viewer::createFBOPerlin() {
 
-}*/
+  //ETAPE 1.2 : Créer la FBO
+  glGenFramebuffers(1,&_fbo); //Déclaration du FBO
+  glGenTextures(1,&_texPerlin); //Déclaration d'une texture
+
+  //Paramétrage de la texture
+  glBindTexture(GL_TEXTURE_2D,_texPerlin); //Activation de la texture
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,512,512,0,GL_RGBA,GL_FLOAT,NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo); //Activation du FBO
+  glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,_texPerlin,0); //Attachement de la texture au FBO
+  glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
+
+
+  // test if everything is ok
+  if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    cout << "Warning: FBO not complete!" << endl;
+}
+//-----------------------------------------------
+void Viewer::deleteFBO() {
+  // delete all FBO Ids
+  glDeleteFramebuffers(1,&_fbo);
+  glDeleteTextures(1,&_texPerlin);
+}
 //-----------------------------------------------
 //Creation de notre géométrie de notre CARRE
 void Viewer::createVAOCarre() {
@@ -95,8 +116,8 @@ void Viewer::deleteVAO() {
 //Permet de dessiner la géométrie (un carré)
 void Viewer::drawVAOCarre() { 
   glBindVertexArray(_vaoQuad); //On va associer un VAO à notre future géométrie
-  //glDrawElements(GL_TRIANGLES,2,GL_UNSIGNED_INT,(void *)0); //On va dessiner 2 triangles ici
-  glDrawArrays(GL_TRIANGLES, 0,6);
+  //glDrawElements(GL_TRIANGLES,2,GL_UNSIGNED_INT,(void *)0); //Ca pour dessiner triangles avec attributs (non adapté)
+  glDrawArrays(GL_TRIANGLES, 0,6); //Ca pour dessiner des soupes de triangles
   glBindVertexArray(0); //On dissocie le VAO à la géométrie
 }
 
@@ -105,13 +126,29 @@ void Viewer::drawVAOCarre() {
 void Viewer::createShaders() {
   _vertexFilenames.push_back("shaders/noise.vert");
   _fragmentFilenames.push_back("shaders/noise.frag");
+
+  _vertexFilenames.push_back("shaders/verifFBO.vert");
+  _fragmentFilenames.push_back("shaders/verifFBO.frag");
 }
 
 //-----------------------------------------------
-//Fonction à priori useless ? (permet de passer des variables à nos shaders)
+//permet de passer des variables à nos shaders
 void Viewer::enableShaderPerlin() {
-  // current shader ID 
+
   GLuint id = _shaders[0]->id(); 
+  glUseProgram(id);
+
+}
+//-----------------------------------------------
+void Viewer::enableShaderVerifFBO(){
+
+  GLuint id = _shaders[1]->id(); 
+
+  //Envoi de la texture au shader VerifFBO
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D,_texPerlin);
+  glUniform1i(glGetUniformLocation(id,"texperlin"),0);
+
   glUseProgram(id);
 
 }
@@ -124,14 +161,29 @@ void Viewer::disableShader() {
 //-----------------------------------------------
 //Création de la scène
 void Viewer::paintGL() {
-  glViewport(0,0,512,512); //ETAPE 1.1 : Créer la fenêtre (viewport) qui a affichera la texture
+
+  //ETAPE 1.2 : Créer la FBO
+  
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo); //On active le mode "écriture en texture"
+
+  //ETAPE 1.1 : Créer la fenêtre (viewport) qui a affichera la texture
+  glViewport(0,0,512,512); 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
   enableShaderPerlin();
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders 
  
-  //Eventuellement ajouter ici le FBO
+ glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
+
+//ETAPE1.3 : Vérification qu'on a bien notre FBO
+  glViewport(0,0,512,512); 
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
+  enableShaderVerifFBO(); //On va utiliser le shader qui affiche le FBO (donc créer new shader)
+  drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
+  disableShader(); //Va désactiver TOUS les shaders 
+
 }
+
 
 
 
@@ -226,6 +278,8 @@ void Viewer::keyPressEvent(QKeyEvent *ke) {
     for(unsigned int i=0;i<_vertexFilenames.size();++i) {
       _shaders[i]->reload(_vertexFilenames[i].c_str(),_fragmentFilenames[i].c_str());
     }
+
+    
   }
 
 
@@ -261,12 +315,13 @@ void Viewer::initializeGL() {
     _shaders.push_back(new Shader());
     _shaders[i]->load(_vertexFilenames[i].c_str(),_fragmentFilenames[i].c_str());
   }
-
+  
 //-----------------------------------------------
 //A MODIFIER
 
   // VAO creation 
   createVAOCarre();
+  createFBOPerlin();
 //-----------------------------------------------
 
   // starts the timer 
