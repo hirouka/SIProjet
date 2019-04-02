@@ -87,14 +87,22 @@ void Viewer::deleteVAO() {
   glDeleteVertexArrays(1,&_vaoTerrain);
   glDeleteVertexArrays(1,&_vaoQuad);
 }
-
 //-----------------------------------------------
 //Permet de dessiner la géométrie (un carré)
-void Viewer::drawVAO() { 
+void Viewer::drawVAOCarre() { 
+  glBindVertexArray(_vaoQuad); //On va associer un VAO à notre future géométrie
+  //glDrawElements(GL_TRIANGLES,2,GL_UNSIGNED_INT,(void *)0); //On va dessiner 2 triangles ici
+  glDrawArrays(GL_TRIANGLES, 0,6);
+  glBindVertexArray(0); //On dissocie le VAO à la géométrie
+}
+//-----------------------------------------------
+//INUTILE POUR L'INSTANT
+void Viewer::drawVAOPerlin() { 
   glBindVertexArray(_vaoQuad); //On va associer un VAO à notre future géométrie
   glDrawElements(GL_TRIANGLES,2,GL_UNSIGNED_INT,(void *)0); //On va dessiner 2 triangles ici
   glBindVertexArray(0); //On dissocie le VAO à la géométrie
 }
+
 //-----------------------------------------------
 //On va créer nos shaders, ici faut ajouter noise.vert/frag
 void Viewer::createShaders() {
@@ -111,17 +119,17 @@ void Viewer::enableShader(unsigned int shader) {
   glUseProgram(id);
 
   // send the model-view matrix 
-  glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(_cam->mdvMatrix()[0][0]));
+  //glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(_cam->mdvMatrix()[0][0]));
 
   // send the projection matrix 
-  glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(_cam->projMatrix()[0][0]));
+  //glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(_cam->projMatrix()[0][0]));
 
   // send the normal matrix (top-left 3x3 transpose(inverse(MDV))) 
-  glUniformMatrix3fv(glGetUniformLocation(id,"normalMat"),1,GL_FALSE,&(_cam->normalMatrix()[0][0]));
+  //glUniformMatrix3fv(glGetUniformLocation(id,"normalMat"),1,GL_FALSE,&(_cam->normalMatrix()[0][0]));
 
   // send a light direction (defined in camera space)
   // TODO (use the variable _light)
-    glUniform3f(glGetUniformLocation(id,"light"),_light[0],_light[1],_light[2]);
+    //glUniform3f(glGetUniformLocation(id,"light"),_light[0],_light[1],_light[2]);
 
 
 }
@@ -137,9 +145,9 @@ void Viewer::paintGL() {
   glViewport(0,0,512,512); //ETAPE 1.1 : Créer la fenêtre (viewport) qui a affichera la texture
   glClear(GL_COLOR_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
   enableShader(_currentshader); //Active le shader n°0 (celui de Perlin)
-  drawVAO(); //dessin de la géométrie (carré) qui servira de support à la texture 
+  drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders 
-
+ 
   //Eventuellement ajouter ici le FBO
 }
 
@@ -268,7 +276,7 @@ void Viewer::initializeGL() {
   _cam->initialize(width(),height(),true);
 
   // load shader files
-  createShaders();
+  createShaders(); 
 
   // init and load all shader files
   for(unsigned int i=0;i<_vertexFilenames.size();++i) {

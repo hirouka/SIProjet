@@ -44,6 +44,8 @@ class Viewer : public QGLWidget {
  private:
   void createVAO();
   void deleteVAO();
+  void drawVAOCarre();
+  void drawVAOPerlin();
   void drawVAO();
 
   void createShaders();
@@ -52,6 +54,7 @@ class Viewer : public QGLWidget {
 
   QTimer        *_timer;    // timer that controls the animation
   unsigned int   _currentshader; // current shader index
+  
 
  // Mesh   *_mesh;   // the mesh
   Grid   *_grid;
