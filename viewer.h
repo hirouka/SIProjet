@@ -42,7 +42,7 @@ class Viewer : public QGLWidget {
   virtual void mouseMoveEvent(QMouseEvent *me);
 
  private:
- void createFBOPerlin(); //AJOUTE E1.2
+  void createFBOPerlin(); //AJOUTE E1.2
   void createVAOCarre(); //AJOUTE E1.1
   void createVAOTerrain(); //AJOUTE E1.1
   void deleteVAO();
@@ -51,8 +51,9 @@ class Viewer : public QGLWidget {
   void drawVAO();
 
   void createShaders();
+  void sendTexturePerlintoShaderNormal();
   void enableShaderPerlin();
-  void enableShaderVerifFBO();
+  void enableShaderVerifFBO(GLuint _texATester);
   void disableShader();
 
   QTimer        *_timer;    // timer that controls the animation
@@ -76,7 +77,9 @@ class Viewer : public QGLWidget {
   GLuint _quad;
 
   GLuint _texPerlin;
-  GLuint _fbo; //AJOUTE E1.2
+  GLuint _texNormal;
+
+  GLuint _fbo[4]; //AJOUTE E1.2
 
 
 };

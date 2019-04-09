@@ -1,6 +1,8 @@
+#version 330
 
 out vec4 outBuffer;
-uniform sampler2D heightmap;
+//uniform sampler2D heightmap;
+uniform sampler2D texperlin;
 
 in vec2 texcoord;
 
@@ -16,15 +18,15 @@ return c.x;// the height is stored in all channels (take the first one)
 
 void main() {
 
-vec2 ps = 1./vec2(textureSize(heightmap,0));
+vec2 ps = 1./vec2(textureSize(texperlin,0));
 
-vec2 g = vec2( value(texture(heightmap,texcoord+vec2(ps.x,0.))) -
+vec2 g = vec2( value(texture2D(texperlin,texcoord+vec2(ps.x,0.))) -
 
-value(texture(heightmap,texcoord-vec2(ps.x,0.))),
+value(texture2D(texperlin,texcoord-vec2(ps.x,0.))),
 
-value(texture(heightmap,texcoord+vec2(0.,ps.y))) -
+value(texture2D(texperlin,texcoord+vec2(0.,ps.y))) -
 
-value(texture(heightmap,texcoord-vec2(0.,ps.y))))/2.;
+value(texture2D(texperlin,texcoord-vec2(0.,ps.y))))/2.;
 
 float scale = 100.;
 
@@ -35,7 +37,8 @@ vec3 n2 = vec3(0.,1.,-g.y*scale);
 vec3 n = normalize(cross(n1,n2));
 
 
-outbuffer = vec4(n,value(texture(heightmap,texcoord)));
+outBuffer = vec4(n,value(texture2D(texperlin,texcoord)));
+//outBuffer = vec4(1.,0.0,0.,0.);
 
 }
 

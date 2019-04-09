@@ -44,7 +44,7 @@ Viewer::~Viewer() {
 void Viewer::createFBOPerlin() {
 
   //ETAPE 1.2 : Créer la FBO
-  glGenFramebuffers(1,&_fbo); //Déclaration du FBO
+  glGenFramebuffers(1,&_fbo[0]); //Déclaration du FBO
   glGenTextures(1,&_texPerlin); //Déclaration d'une texture
 
   //Paramétrage de la texture
@@ -55,7 +55,7 @@ void Viewer::createFBOPerlin() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  glBindFramebuffer(GL_FRAMEBUFFER,_fbo); //Activation du FBO
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo[0]); //Activation du FBO
   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,_texPerlin,0); //Attachement de la texture au FBO
   glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
 
@@ -63,12 +63,42 @@ void Viewer::createFBOPerlin() {
   // test if everything is ok
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     cout << "Warning: FBO not complete!" << endl;
+    
+
+//************************ajout texture normal***************************//
+  
+  glGenFramebuffers(1,&_fbo[1]); //Déclaration du FBO (On fait ça dans un AUTRE FBO.)
+  glGenTextures(1,&_texNormal); //Déclaration d'une texture
+
+  glBindTexture(GL_TEXTURE_2D,_texNormal); //Activation de la texture
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,512,512,0,GL_RGBA,GL_FLOAT,NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo[1]); //Activation du FBO
+  glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,_texNormal,0); //Attachement de la texture au FBO
+  glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
+  
+  // test if everything is ok
+  if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    cout << "Warning: FBO not complete!" << endl;
+    
+  /*NOTA BENE : GL_COLOR_ATTACHMENTX sert dans le cas où on a plusieurs textures pour UN SEUL FBO. Dans ce cas, on spécifie quel GL_COLOR_ATTACHMENTX (=quelle texture) on veut utiliser*/
+
 }
 //-----------------------------------------------
 void Viewer::deleteFBO() {
   // delete all FBO Ids
-  glDeleteFramebuffers(1,&_fbo);
+  glDeleteFramebuffers(1,&_fbo[0]);
   glDeleteTextures(1,&_texPerlin);
+
+
+  //*********ajout supr text normal ******
+
+  glDeleteFramebuffers(1,&_fbo[1]);
+  glDeleteTextures(1,&_texNormal);
 }
 //-----------------------------------------------
 //Creation de notre géométrie de notre CARRE
@@ -124,13 +154,21 @@ void Viewer::drawVAOCarre() {
 //-----------------------------------------------
 //On va créer nos shaders, ici faut ajouter noise.vert/frag
 void Viewer::createShaders() {
+
+  //_shaders[0] = Perlin
+  //_shaders[1] = vérification de FBO
+  //_shaders[2] = Normales
+
   _vertexFilenames.push_back("shaders/noise.vert");
   _fragmentFilenames.push_back("shaders/noise.frag");
 
   _vertexFilenames.push_back("shaders/verifFBO.vert");
   _fragmentFilenames.push_back("shaders/verifFBO.frag");
-}
 
+   _vertexFilenames.push_back("shaders/normal.vert");
+   _fragmentFilenames.push_back("shaders/normal.frag");
+
+}
 //-----------------------------------------------
 //permet de passer des variables à nos shaders
 void Viewer::enableShaderPerlin() {
@@ -139,12 +177,26 @@ void Viewer::enableShaderPerlin() {
   glUseProgram(id);
 
 }
+
 //-----------------------------------------------
-void Viewer::enableShaderVerifFBO(){
+void Viewer::enableShaderVerifFBO(GLuint _texATester){
 
   GLuint id = _shaders[1]->id(); 
 
   //Envoi de la texture au shader VerifFBO
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D,_texNormal);
+  glUniform1i(glGetUniformLocation(id,"textureAAfficher"),0);
+
+  glUseProgram(id);
+
+}
+//-----------------------------------------------
+void Viewer::sendTexturePerlintoShaderNormal(){
+
+  GLuint id = _shaders[2]->id(); 
+
+  //Envoi de Perlin au shader "Normal" pour y récupérer les normales
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,_texPerlin);
   glUniform1i(glGetUniformLocation(id,"texperlin"),0);
@@ -161,12 +213,15 @@ void Viewer::disableShader() {
 //-----------------------------------------------
 //Création de la scène
 void Viewer::paintGL() {
-
-  //ETAPE 1.2 : Créer la FBO
   
-  glBindFramebuffer(GL_FRAMEBUFFER,_fbo); //On active le mode "écriture en texture"
+  //ETAPE 1.3 : Créer FBO pour normal
+  //GLenum bufferlist [] = {GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1};//liste des buffers 
+  glDrawBuffer(GL_COLOR_ATTACHMENT0); //Sélection du buffer 0 (pour perlin) et l'afficher
+  
+  //ETAPE 1.2 : Créer la FBO pour Perlin
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo[0]); //On active le mode "écriture en texture"
 
-  //ETAPE 1.1 : Créer la fenêtre (viewport) qui a affichera la texture
+  //ETAPE 1.1 : Créer la fenêtre (viewport) qui a affichera la texture (Perlin)
   glViewport(0,0,512,512); 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
   enableShaderPerlin();
@@ -175,10 +230,32 @@ void Viewer::paintGL() {
  
  glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
 
-//ETAPE1.3 : Vérification qu'on a bien notre FBO
-  glViewport(0,0,512,512); 
+  //ETAPE1.3 : Vérification qu'on a bien notre FBO (Perlin)
+  /*glViewport(0,0,512,512); 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
   enableShaderVerifFBO(); //On va utiliser le shader qui affiche le FBO (donc créer new shader)
+  drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
+  disableShader(); //Va désactiver TOUS les shaders */
+
+  //************************création texture normale***************************//
+
+  //ETAPE 1.4 : Envoi de shader Perlin pour créer normal
+  glDrawBuffer(GL_COLOR_ATTACHMENT0); //Sélection du buffer 0 (pour perlin) et l'afficher
+  
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo[1]); //On active le mode "écriture en texture"
+  
+  glViewport(0,0,512,512); 
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  sendTexturePerlintoShaderNormal();
+  drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
+  disableShader(); //Va désactiver TOUS les shaders
+  
+  glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
+
+  //ETAPE1.5 : Vérification qu'on a bien notre FBO (Normal)
+  glViewport(0,0,512,512); 
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
+  enableShaderVerifFBO(_texNormal); //On va utiliser le shader qui affiche le FBO (donc créer new shader)
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders 
 
@@ -308,7 +385,7 @@ void Viewer::initializeGL() {
   _cam->initialize(width(),height(),true);
 
   // load shader files
-  createShaders(); 
+  createShaders();  
 
   // init and load all shader files
   for(unsigned int i=0;i<_vertexFilenames.size();++i) {
