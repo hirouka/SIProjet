@@ -5,6 +5,7 @@
 #include <iostream>
 #include "viewer.h"
 #include "grid.h"
+
 using namespace std;
 
 char *getFilename(int argc,char **argv) {
@@ -24,7 +25,7 @@ int main(int argc,char** argv) {
   fmt.setProfile(QGLFormat::CoreProfile);
   fmt.setSampleBuffers(true);
   
-  Viewer viewer(fmt);
+  Viewer viewer(getFilename(argc,argv),fmt);
 
   viewer.setWindowTitle("projet Alpes");
   viewer.show();

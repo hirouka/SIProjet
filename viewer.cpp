@@ -8,7 +8,7 @@
 using namespace std;
 
 
-Viewer::Viewer(const QGLFormat &format)
+Viewer::Viewer(char * filename,const QGLFormat &format)
   : QGLWidget(format),
     _timer(new QTimer(this)),
     _light(glm::vec3(0,0,1)),
@@ -17,24 +17,25 @@ Viewer::Viewer(const QGLFormat &format)
   setlocale(LC_ALL,"C");
 
   // load a mesh into the CPU memory
-  //_mesh = new Mesh(filename);
+  _mesh = new Mesh(filename);
   _grid = new Grid();
 
   // create a camera (automatically modify model/view matrices according to user interactions)
- // _cam  = new Camera(_mesh->radius,glm::vec3(_mesh->center[0],_mesh->center[1],_mesh->center[2]));
-  _cam  = new Camera();
+  _cam  = new Camera(_mesh->radius,glm::vec3(_mesh->center[0],_mesh->center[1],_mesh->center[2]));
+  //_cam  = new Camera();
   _timer->setInterval(10);
   connect(_timer,SIGNAL(timeout()),this,SLOT(updateGL()));
 }
 
 Viewer::~Viewer() {
   delete _timer;
+  delete _mesh;
   delete _cam;
   delete _grid;
   for(unsigned int i=0;i<_shaders.size();++i) {
     delete _shaders[i];
   }
-
+  
   deleteVAO();
   deleteFBO();
 
@@ -93,10 +94,7 @@ void Viewer::deleteFBO() {
   // delete all FBO Ids
   glDeleteFramebuffers(1,&_fbo[0]);
   glDeleteTextures(1,&_texPerlin);
-
-
   //*********ajout supr text normal ******
-
   glDeleteFramebuffers(1,&_fbo[1]);
   glDeleteTextures(1,&_texNormal);
 }
@@ -104,12 +102,9 @@ void Viewer::deleteFBO() {
 //Creation de notre géométrie de notre CARRE
 void Viewer::createVAOCarre() {
 
-  const GLfloat quadData[] = {
-    -1.0f,-1.0f,0.0f, 1.0f,-1.0f,0.0f, -1.0f,1.0f,0.0f, -1.0f,1.0f,0.0f, 1.0f,-1.0f,0.0f, 1.0f,1.0f,0.0f };
-
+  const GLfloat quadData[] = {-1.0f,-1.0f,0.0f, 1.0f,-1.0f,0.0f, -1.0f,1.0f,0.0f, -1.0f,1.0f,0.0f, 1.0f,-1.0f,0.0f, 1.0f,1.0f,0.0f };
   glGenBuffers(1,&_quad);
   glGenVertexArrays(1,&_vaoQuad);
-
   // create the VBO associated with the screen quad
   glBindVertexArray(_vaoQuad);
   glBindBuffer(GL_ARRAY_BUFFER,_quad); // vertices
@@ -126,7 +121,7 @@ void Viewer::createVAOTerrain() {
   glGenVertexArrays(1,&_vaoTerrain);
 
   // create the VBO associated with the grid (the terrain)
-  glBindVertexArray(_vaoTerrain);
+  glBindVertexArray(_vaoTerrain); //activation du VAO
   glBindBuffer(GL_ARRAY_BUFFER,_terrain[0]); // vertices
   glBufferData(GL_ARRAY_BUFFER,_grid->nbVertices()*3*sizeof(float),_grid->vertices(),GL_STATIC_DRAW);
   glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void *)0);
@@ -150,29 +145,37 @@ void Viewer::drawVAOCarre() {
   glDrawArrays(GL_TRIANGLES, 0,6); //Ca pour dessiner des soupes de triangles
   glBindVertexArray(0); //On dissocie le VAO à la géométrie
 }
-
+//-----------------------------------------------
+//Permet de dessiner le terrain
+void Viewer::drawVAOTerrain() { 
+  glBindVertexArray(_vaoTerrain);
+  //glDrawArrays(GL_TRIANGLES, 0,_grid->nbFaces()); //Ca pour dessiner des soupes de triangles
+  glDrawElements( GL_TRIANGLES,3*_grid->nbFaces(),GL_UNSIGNED_INT,(void *)0); //not sure
+  glBindVertexArray(0);
+}
 //-----------------------------------------------
 //On va créer nos shaders, ici faut ajouter noise.vert/frag
 void Viewer::createShaders() {
-
   //_shaders[0] = Perlin
   //_shaders[1] = vérification de FBO
   //_shaders[2] = Normales
-
+  //_shaders[3] = Terrain
   _vertexFilenames.push_back("shaders/noise.vert");
   _fragmentFilenames.push_back("shaders/noise.frag");
 
   _vertexFilenames.push_back("shaders/verifFBO.vert");
   _fragmentFilenames.push_back("shaders/verifFBO.frag");
 
-   _vertexFilenames.push_back("shaders/normal.vert");
-   _fragmentFilenames.push_back("shaders/normal.frag");
+  _vertexFilenames.push_back("shaders/normal.vert");
+  _fragmentFilenames.push_back("shaders/normal.frag");
+
+  _vertexFilenames.push_back("shaders/terrain.vert");
+  _fragmentFilenames.push_back("shaders/terrain.frag");
 
 }
 //-----------------------------------------------
 //permet de passer des variables à nos shaders
 void Viewer::enableShaderPerlin() {
-
   GLuint id = _shaders[0]->id(); 
   glUseProgram(id);
 
@@ -181,28 +184,45 @@ void Viewer::enableShaderPerlin() {
 //-----------------------------------------------
 void Viewer::enableShaderVerifFBO(GLuint _texATester){
 
-  GLuint id = _shaders[1]->id(); 
-
+  GLuint id = _shaders[2]->id(); 
   //Envoi de la texture au shader VerifFBO
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D,_texNormal);
+  glBindTexture(GL_TEXTURE_2D,_texATester);
   glUniform1i(glGetUniformLocation(id,"textureAAfficher"),0);
 
   glUseProgram(id);
 
 }
+
+
+
+//---------------------Ajout *****--------------------------
+
+void Viewer::enableShaderTerrain() {
+
+  // get the current modelview and projection matrices 
+  glm::mat4 p  = _cam->projMatrix();
+  glm::mat4 mv  = _cam->mdvMatrix();
+
+  GLuint id = _shaders[3]->id(); 
+  glUseProgram(id);
+  //Envoi de Perlin au shader "Normal" pour y récupérer les normales
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D,_texPerlin);
+  glUniform1i(glGetUniformLocation(id,"textureAAfficher"),0);
+  glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(mv[0][0]));
+  glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(p[0][0]));
+
+}
+
 //-----------------------------------------------
 void Viewer::sendTexturePerlintoShaderNormal(){
-
   GLuint id = _shaders[2]->id(); 
-
   //Envoi de Perlin au shader "Normal" pour y récupérer les normales
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,_texPerlin);
   glUniform1i(glGetUniformLocation(id,"texperlin"),0);
-
   glUseProgram(id);
-
 }
 //-----------------------------------------------
 void Viewer::disableShader() {
@@ -213,7 +233,6 @@ void Viewer::disableShader() {
 //-----------------------------------------------
 //Création de la scène
 void Viewer::paintGL() {
-  
   //ETAPE 1.3 : Créer FBO pour normal
   //GLenum bufferlist [] = {GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1};//liste des buffers 
   glDrawBuffer(GL_COLOR_ATTACHMENT0); //Sélection du buffer 0 (pour perlin) et l'afficher
@@ -227,13 +246,12 @@ void Viewer::paintGL() {
   enableShaderPerlin();
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders 
- 
- glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
+  glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
 
   //ETAPE1.3 : Vérification qu'on a bien notre FBO (Perlin)
   /*glViewport(0,0,512,512); 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
-  enableShaderVerifFBO(); //On va utiliser le shader qui affiche le FBO (donc créer new shader)
+  enableShaderVerifFBO(_texPerlin); //On va utiliser le shader qui affiche le FBO (donc créer new shader)
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders */
 
@@ -249,15 +267,25 @@ void Viewer::paintGL() {
   sendTexturePerlintoShaderNormal();
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders
-  
+
   glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
 
   //ETAPE1.5 : Vérification qu'on a bien notre FBO (Normal)
-  glViewport(0,0,512,512); 
+  /*glViewport(0,0,512,512); 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
   enableShaderVerifFBO(_texNormal); //On va utiliser le shader qui affiche le FBO (donc créer new shader)
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
-  disableShader(); //Va désactiver TOUS les shaders 
+  disableShader(); //Va désactiver TOUS les shaders*/ 
+
+  //************************création du maillage***************************//
+  glViewport(0,0,512,512); 
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  enableShaderTerrain();
+  //enableShaderVerifFBO(_texNormal);
+  drawVAOTerrain();//dessin du maillage
+  disableShader(); //Va désactiver TOUS les shaders
+
+  
 
 }
 
@@ -398,8 +426,9 @@ void Viewer::initializeGL() {
 
   // VAO creation 
   createVAOCarre();
-  createFBOPerlin();
+  createVAOTerrain();
 //-----------------------------------------------
+  createFBOPerlin();
 
   // starts the timer 
   _timer->start();

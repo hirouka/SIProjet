@@ -30,6 +30,7 @@
 class Viewer : public QGLWidget {
  public:
   Viewer(
+   char *filename,
 	 const QGLFormat &format=QGLFormat::defaultFormat());
   ~Viewer();
   
@@ -48,18 +49,20 @@ class Viewer : public QGLWidget {
   void deleteVAO();
   void deleteFBO(); //AJOUTE E1.2
   void drawVAOCarre();
+  void drawVAOTerrain();
   void drawVAO();
 
   void createShaders();
   void sendTexturePerlintoShaderNormal();
   void enableShaderPerlin();
+  void enableShaderTerrain();
   void enableShaderVerifFBO(GLuint _texATester);
   void disableShader();
 
   QTimer        *_timer;    // timer that controls the animation
   
 
- // Mesh   *_mesh;   // the mesh
+  Mesh   *_mesh;   // the mesh
   Grid   *_grid;
   Camera *_cam;    // the camera
 
@@ -79,7 +82,7 @@ class Viewer : public QGLWidget {
   GLuint _texPerlin;
   GLuint _texNormal;
 
-  GLuint _fbo[4]; //AJOUTE E1.2
+  GLuint _fbo[6]; //AJOUTE E1.2
 
 
 };
