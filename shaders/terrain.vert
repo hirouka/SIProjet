@@ -2,7 +2,7 @@
 
 // Attributs de chaque sommets de triangles (dans le maillage)
 layout(location = 0) in vec3 position; 
-//layout(location = 1) in vec3 normal;
+//layout(location = 1) in vec3 texNormal;
 //layout(location = 2) in vec3 tangent;
 //layout(location = 3) in vec2 coord;
 
@@ -24,7 +24,7 @@ out vec4 shadowcoord; // ajout
 //----------------------------------------------
 //Permet de récupérer la normale dans la texture associée
 vec3 getNormal(){
-    return texture(texNormal,position.xy).xyz;
+    return texture(texNormal,position.xy*0.5+0.5).xyz;
 }
 //----------------------------------------------
 void main() {

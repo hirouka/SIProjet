@@ -17,18 +17,19 @@ out vec4 outBuffer;
 
 void main() {
 
-    float et      = 10.0;
+    /*float et     = 10.0;
     vec3 n = normalize(normalView);
     vec3 e = normalize(eyeView);
     vec3 l = normalize(light);
 
     float diff = max(dot(l,n),0.);
     float spec = pow(max(dot(reflect(l,n),e),0.0),et);
-    outBuffer = vec4(0.0,1,0,0)*(diff + spec)*2.0;
+    outBuffer = vec4(0.0,1,0,0)*(diff + spec)*2.0;*/
 
 
     //outBuffer = texelFetch(textureAAfficher,ivec2(gl_FragCoord.xy),0);
     //outBuffer = vec4(0.0,1,0,0);
+    outBuffer = vec4(normalView*0.5+0.5,0.);
 }
 
 

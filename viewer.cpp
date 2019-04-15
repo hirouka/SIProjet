@@ -210,18 +210,24 @@ void Viewer::enableShaderTerrain() {
 
 
   //Envoi de la texture "normale"
-  GLuint id = _shaders[2]->id(); 
+  //GLuint id = _shaders[2]->id(); 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,_texNormal);
-  glUseProgram(id);
-  glUniform1i(glGetUniformLocation(id,"texNormal"),0);
+  //glUseProgram(id);
+  //glUniform1i(glGetUniformLocation(id,"texNormal"),0);
 
   //Envoi texture Perlin
-  id = _shaders[3]->id(); 
+  GLuint id = _shaders[3]->id(); 
+  glUseProgram(id);
+
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,_texPerlin);
-  glUseProgram(id);
+
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D,_texNormal);
+  
   glUniform1i(glGetUniformLocation(id,"textureAAfficher"),0);
+  glUniform1i(glGetUniformLocation(id,"texNormal"),1);
 
 
   //Envoi des matrices
