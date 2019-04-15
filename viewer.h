@@ -76,7 +76,7 @@ class Viewer : public QGLWidget {
   GLuint _vao;
   GLuint _vaoTerrain;
   GLuint _vaoQuad;
-  GLuint _terrain[3];
+  GLuint _terrain[2];
   GLuint _quad;
 
   GLuint _texPerlin;

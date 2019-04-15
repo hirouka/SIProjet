@@ -7,6 +7,8 @@ in  vec3  eyeView;
 in vec4 shadowcoord; // ajout
 
 uniform sampler2D textureAAfficher; //Texture de perlin qui défini la hauteur à chaque point
+uniform sampler2D texNormal; //Texture de normal
+
 uniform mat4 mdvMat;      // modelview matrix 
 uniform mat4 projMat;     // projection matrix
 uniform vec3 light; // ajut de lumière 
@@ -22,10 +24,10 @@ void main() {
 
     float diff = max(dot(l,n),0.);
     float spec = pow(max(dot(reflect(l,n),e),0.0),et);
-    //bufferColor = texColor0*texColor*(diff + spec)*2.0;
+    outBuffer = vec4(0.0,1,0,0)*(diff + spec)*2.0;
 
 
-    outBuffer = texelFetch(textureAAfficher,ivec2(gl_FragCoord.xy),0);
+    //outBuffer = texelFetch(textureAAfficher,ivec2(gl_FragCoord.xy),0);
     //outBuffer = vec4(0.0,1,0,0);
 }
 

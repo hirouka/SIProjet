@@ -118,7 +118,7 @@ void Viewer::createVAOCarre() {
 void Viewer::createVAOTerrain() {
 
   glGenVertexArrays(1,&_vaoTerrain); //Créer VAO
-  glGenBuffers(3,_terrain); //Créer 2 VBO associés (potition + normal)
+  glGenBuffers(2,_terrain); //Créer 2 VBO associés (potition + normal)
 
   // create the VBO associated with the grid (the terrain)
   glBindVertexArray(_vaoTerrain); //activation du VAO
@@ -128,14 +128,7 @@ void Viewer::createVAOTerrain() {
   glBufferData(GL_ARRAY_BUFFER,_grid->nbVertices()*3*sizeof(float),_grid->vertices(),GL_STATIC_DRAW);
   glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void *)0);
   glEnableVertexAttribArray(0);
-
-  //POUR NORMAL ATTENTION NORMAL A DONNER
-  glBindBuffer(GL_ARRAY_BUFFER,_terrain[1]);
-  glBufferData(GL_ARRAY_BUFFER,_grid->nbVertices()*3*sizeof(float),_grid->vertices(),GL_STATIC_DRAW);
-  glVertexAttribPointer(1,3,GL_FLOAT,GL_TRUE,0,(void *)0);
-  glEnableVertexAttribArray(1);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,_terrain[2]); // indices
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,_terrain[1]); // indices
   glBufferData(GL_ELEMENT_ARRAY_BUFFER,_grid->nbFaces()*3*sizeof(int),_grid->faces(),GL_STATIC_DRAW);
 }
 //-----------------------------------------------
@@ -215,12 +208,23 @@ void Viewer::enableShaderTerrain() {
   glm::mat4 p  = _cam->projMatrix();
   glm::mat4 mv  = _cam->mdvMatrix();
 
-  GLuint id = _shaders[3]->id(); 
+
+  //Envoi de la texture "normale"
+  GLuint id = _shaders[2]->id(); 
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D,_texNormal);
   glUseProgram(id);
-  //Envoi de Perlin au shader "Normal" pour y récupérer les normales
+  glUniform1i(glGetUniformLocation(id,"texNormal"),0);
+
+  //Envoi texture Perlin
+  id = _shaders[3]->id(); 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D,_texPerlin);
+  glUseProgram(id);
   glUniform1i(glGetUniformLocation(id,"textureAAfficher"),0);
+
+
+  //Envoi des matrices
   glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(mv[0][0]));
   glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(p[0][0]));
   glUniformMatrix3fv(glGetUniformLocation(id,"normalMat"),1,GL_FALSE,&(_cam->normalMatrix()[0][0]));
