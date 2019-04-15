@@ -117,16 +117,25 @@ void Viewer::createVAOCarre() {
 //Creation de notre géométrie de notre TERRAIN (la grille)
 void Viewer::createVAOTerrain() {
 
-  glGenBuffers(2,_terrain);
-  glGenVertexArrays(1,&_vaoTerrain);
+  glGenVertexArrays(1,&_vaoTerrain); //Créer VAO
+  glGenBuffers(3,_terrain); //Créer 2 VBO associés (potition + normal)
 
   // create the VBO associated with the grid (the terrain)
   glBindVertexArray(_vaoTerrain); //activation du VAO
+
+  //POUR POSITION
   glBindBuffer(GL_ARRAY_BUFFER,_terrain[0]); // vertices
   glBufferData(GL_ARRAY_BUFFER,_grid->nbVertices()*3*sizeof(float),_grid->vertices(),GL_STATIC_DRAW);
   glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,0,(void *)0);
   glEnableVertexAttribArray(0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,_terrain[1]); // indices
+
+  //POUR NORMAL ATTENTION NORMAL A DONNER
+  glBindBuffer(GL_ARRAY_BUFFER,_terrain[1]);
+  glBufferData(GL_ARRAY_BUFFER,_grid->nbVertices()*3*sizeof(float),_grid->vertices(),GL_STATIC_DRAW);
+  glVertexAttribPointer(1,3,GL_FLOAT,GL_TRUE,0,(void *)0);
+  glEnableVertexAttribArray(1);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,_terrain[2]); // indices
   glBufferData(GL_ELEMENT_ARRAY_BUFFER,_grid->nbFaces()*3*sizeof(int),_grid->faces(),GL_STATIC_DRAW);
 }
 //-----------------------------------------------
@@ -148,7 +157,9 @@ void Viewer::drawVAOCarre() {
 //-----------------------------------------------
 //Permet de dessiner le terrain
 void Viewer::drawVAOTerrain() { 
+
   glBindVertexArray(_vaoTerrain);
+
   //glDrawArrays(GL_TRIANGLES, 0,_grid->nbFaces()); //Ca pour dessiner des soupes de triangles
   glDrawElements( GL_TRIANGLES,3*_grid->nbFaces(),GL_UNSIGNED_INT,(void *)0); //not sure
   glBindVertexArray(0);
@@ -212,6 +223,10 @@ void Viewer::enableShaderTerrain() {
   glUniform1i(glGetUniformLocation(id,"textureAAfficher"),0);
   glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(mv[0][0]));
   glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(p[0][0]));
+  glUniformMatrix3fv(glGetUniformLocation(id,"normalMat"),1,GL_FALSE,&(_cam->normalMatrix()[0][0]));
+
+  //Ajout lumière 
+  glUniform3fv(glGetUniformLocation(id,"light"),1,&(_light[0]));
 
 }
 

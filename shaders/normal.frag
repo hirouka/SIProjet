@@ -1,21 +1,16 @@
 #version 330
 
 out vec4 outBuffer;
-//uniform sampler2D heightmap;
 uniform sampler2D texperlin;
 
 in vec2 texcoord;
-
-
+//---------------------------------------------
 float value(in vec4 c) {
-
-// gradient of what:
-
 return c.x;// the height is stored in all channels (take the first one)
-
 }
 
-
+//---------------------------------------------
+//SHADER POUR CREER LA TEXTURE DE NORMALE
 void main() {
 
 vec2 ps = 1./vec2(textureSize(texperlin,0));
