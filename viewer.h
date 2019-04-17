@@ -56,6 +56,7 @@ class Viewer : public QGLWidget {
   void sendTexturePerlintoShaderNormal();
   void enableShaderPerlin();
   void enableShaderTerrain();
+  void enableShaderProfondeur();
   void enableShaderVerifFBO(GLuint _texATester);
   void disableShader();
 
@@ -67,7 +68,9 @@ class Viewer : public QGLWidget {
   Camera *_cam;    // the camera
 
   glm::vec3 _light; // light direction
-  bool      _mode;  // camera motion or light motion
+  bool      _mode; // camera motion or light motion
+  float     _var;
+  float     _speed; 
 
   std::vector<std::string> _vertexFilenames;   // all vertex filenames
   std::vector<std::string> _fragmentFilenames; // all fragment filenames
@@ -78,10 +81,9 @@ class Viewer : public QGLWidget {
   GLuint _vaoQuad;
   GLuint _terrain[2];
   GLuint _quad;
-
   GLuint _texPerlin;
   GLuint _texNormal;
-
+  GLuint _rendDepthId;
   GLuint _fbo[6]; //AJOUTE E1.2
 
 

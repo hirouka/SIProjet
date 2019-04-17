@@ -21,8 +21,6 @@ out vec3 tangentView;
 
 out vec3 position_world;
 out vec4 pos;
-out float u;
-out float v;
 
 //----------------------------------------------
 //Permet de récupérer la normale dans la texture associée
@@ -32,13 +30,12 @@ vec3 getNormal(){
 //----------------------------------------------
 void main() {
 
-  u=position.x*0.5+0.5;
-  v=position.y*0.5+0.5;
+  uvcoord = vec2(position.x, position.y)*0.5+0.5;
   vec3 p = position;
 
   //eliminer le terrain en dessous de niveau la mer 
-  if(texture(textureAAfficher,vec2(u,v)).y>0.35) {
-      	p.z = texture(textureAAfficher,vec2(u,v)).z;
+  if(texture(textureAAfficher,uvcoord).y>0.40) {
+      	p.z = texture(textureAAfficher,uvcoord).z;
         
   }else{
       	p.z=0.35;

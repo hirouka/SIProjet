@@ -12,9 +12,10 @@ Viewer::Viewer(char * filename,const QGLFormat &format)
   : QGLWidget(format),
     _timer(new QTimer(this)),
     _light(glm::vec3(0,0,1)),
-    _mode(false) {
-
-  setlocale(LC_ALL,"C");
+    _mode(false),
+    _var(0.0f),
+    _speed(0.01f) {
+    setlocale(LC_ALL,"C");
 
   // load a mesh into the CPU memory
   _mesh = new Mesh(filename);
@@ -81,6 +82,27 @@ void Viewer::createFBOPerlin() {
   glBindFramebuffer(GL_FRAMEBUFFER,_fbo[1]); //Activation du FBO
   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,_texNormal,0); //Attachement de la texture au FBO
   glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
+
+  // test if everything is ok
+  if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    cout << "Warning: FBO not complete!" << endl;
+    
+
+  //************************récupération de depth***************************//
+  glGenFramebuffers(1,&_fbo[2]); //Déclaration du FBO (On fait ça dans un AUTRE FBO.)
+  glGenTextures(1,&_rendDepthId); //Déclaration d'une texture
+  
+  // create the texture for rendering depth values
+  glBindTexture(GL_TEXTURE_2D,_rendDepthId);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,width(),height(),0,GL_DEPTH_COMPONENT,GL_FLOAT,NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); 
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo[2]); //Activation du FBO
+  glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,_rendDepthId,0); //Attachement de la texture au FBO
+  glBindFramebuffer(GL_FRAMEBUFFER,0); 
   
   // test if everything is ok
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -97,6 +119,7 @@ void Viewer::deleteFBO() {
   //*********ajout supr text normal ******
   glDeleteFramebuffers(1,&_fbo[1]);
   glDeleteTextures(1,&_texNormal);
+  glDeleteTextures(1,&_rendDepthId);
 }
 //-----------------------------------------------
 //Creation de notre géométrie de notre CARRE
@@ -164,6 +187,7 @@ void Viewer::createShaders() {
   //_shaders[1] = vérification de FBO
   //_shaders[2] = Normales
   //_shaders[3] = Terrain
+  //_shaders[4] = Depth (pour le fog)
   _vertexFilenames.push_back("shaders/noise.vert");
   _fragmentFilenames.push_back("shaders/noise.frag");
 
@@ -176,6 +200,33 @@ void Viewer::createShaders() {
   _vertexFilenames.push_back("shaders/terrain.vert");
   _fragmentFilenames.push_back("shaders/terrain.frag");
 
+  _vertexFilenames.push_back("shaders/first-pass.vert");
+  _fragmentFilenames.push_back("shaders/first-pass.frag");
+  
+
+
+}
+//-----------------------------------------------
+//permet de passer des variables à nos shaders
+void Viewer::enableShaderProfondeur() {
+  // get the current modelview and projection matrices 
+  glm::mat4 p  = _cam->projMatrix();
+  glm::mat4 mv  = _cam->mdvMatrix();
+  
+  GLuint id = _shaders[4]->id(); 
+  glUseProgram(id);
+
+  //Envoi de Normal à la PassProfondeur
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D,_texNormal);
+  glUniform1i(glGetUniformLocation(id,"texNormal"),0);
+
+  //Envoi des matrices
+  glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(mv[0][0]));
+  glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(p[0][0]));
+  glUniformMatrix3fv(glGetUniformLocation(id,"normalMat"),1,GL_FALSE,&(_cam->normalMatrix()[0][0]));
+
+  
 }
 //-----------------------------------------------
 //permet de passer des variables à nos shaders
@@ -201,13 +252,11 @@ void Viewer::enableShaderVerifFBO(GLuint _texATester){
 
 
 //---------------------Ajout *****--------------------------
-
 void Viewer::enableShaderTerrain() {
 
   // get the current modelview and projection matrices 
   glm::mat4 p  = _cam->projMatrix();
   glm::mat4 mv  = _cam->mdvMatrix();
-
 
   //Envoi de la texture "normale"
   //GLuint id = _shaders[2]->id(); 
@@ -229,7 +278,6 @@ void Viewer::enableShaderTerrain() {
   glUniform1i(glGetUniformLocation(id,"textureAAfficher"),0);
   glUniform1i(glGetUniformLocation(id,"texNormal"),1);
 
-
   //Envoi des matrices
   glUniformMatrix4fv(glGetUniformLocation(id,"mdvMat"),1,GL_FALSE,&(mv[0][0]));
   glUniformMatrix4fv(glGetUniformLocation(id,"projMat"),1,GL_FALSE,&(p[0][0]));
@@ -237,6 +285,7 @@ void Viewer::enableShaderTerrain() {
 
   //Ajout lumière 
   glUniform3fv(glGetUniformLocation(id,"light"),1,&(_light[0]));
+    glUniform1f(glGetUniformLocation(id,"anim"),_var); //AJOUT : pour modif selon le temps
 
 }
 
@@ -302,6 +351,27 @@ void Viewer::paintGL() {
   drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
   disableShader(); //Va désactiver TOUS les shaders*/ 
 
+  //************************récupération de depth***************************//
+  //ETAPE 5 : Récupération de profondeur
+  glDrawBuffer(GL_COLOR_ATTACHMENT0); //Sélection du buffer 0 (pour perlin) et l'afficher
+  
+  glBindFramebuffer(GL_FRAMEBUFFER,_fbo[2]); //On active le mode "écriture en texture"
+  
+  glViewport(0,0,512,512); 
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  enableShaderProfondeur();
+  drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
+  disableShader(); //Va désactiver TOUS les shaders
+
+  glBindFramebuffer(GL_FRAMEBUFFER,0); //On désactive le mode "écriture en texture"
+
+  //ETAPE1.5 : Vérification qu'on a bien notre FBO (Normal)
+  /*glViewport(0,0,512,512); 
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Effacer ce qu'il y avait sur l'écran auparavant
+  enableShaderVerifFBO(_rendDepthId); //On va utiliser le shader qui affiche le FBO (donc créer new shader)
+  drawVAOCarre(); //dessin de la géométrie (carré) qui servira de support à la texture 
+  disableShader(); //Va désactiver TOUS les shaders*/
+
   //************************création du maillage***************************//
   glViewport(0,0,512,512); 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -309,6 +379,10 @@ void Viewer::paintGL() {
   //enableShaderVerifFBO(_texNormal);
   drawVAOTerrain();//dessin du maillage
   disableShader(); //Va désactiver TOUS les shaders
+
+
+
+  _var += _speed;
 
   
 
@@ -417,6 +491,7 @@ void Viewer::keyPressEvent(QKeyEvent *ke) {
 }
 
 void Viewer::initializeGL() {
+
   // make this window the current one
   makeCurrent();
 
@@ -429,8 +504,19 @@ void Viewer::initializeGL() {
 
 
   // init OpenGL settings
-  glClearColor(0.0,0.0,0.0,1.0);
+  glClearColor(0.,0.1,0.1,1.0);
   glEnable(GL_DEPTH_TEST);
+
+  //------------------------
+  /*const GLfloat _fogdensity = 0.3f; //AJOUTE : fog
+  const GLfloat _fogColor[] = {0.5f, 0.5f, 0.5f, 1.0f};
+  glEnable(GL_FOG); //AJOUTE : fog
+  glFogi(GL_FOG_MODE, GL_EXP2); //set the fog mode to GL_EXP2
+  glFogfv(GL_FOG_COLOR, _fogColor); //set the fog color to our color chosen above
+  glFogf(GL_FOG_DENSITY, _fogdensity); //set the density to the value above
+  glHint(GL_FOG_HINT, GL_NICEST); // set the fog to look the nicest, may slow down on older cards
+  *///------------------------
+
   glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
   glViewport(0,0,width(),height());
 
