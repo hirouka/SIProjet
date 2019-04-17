@@ -20,7 +20,11 @@ out vec3 normalView;
 //out vec3 tangentView;
 out vec3 eyeView;
 out vec2 uvcoord;
-out vec4 shadowcoord; // ajout
+//out vec4 shadowcoord; // ajout
+out vec4 pos;
+out float u;
+out float v;
+out vec3 tangentView ;
 //----------------------------------------------
 //Permet de récupérer la normale dans la texture associée
 vec3 getNormal(){
@@ -28,14 +32,32 @@ vec3 getNormal(){
 }
 //----------------------------------------------
 void main() {
-  float d1 = texture(textureAAfficher,position.xy*0.5+0.5).z;
-  vec3 newpos = vec3(position.x, position.y, d1);
-  eyeView     = normalize((mdvMat*vec4(position,1.0)).xyz);
+
+  u=position.x*0.5+0.5;
+  v=position.y*0.5+0.5;
+  vec3 p = position;
+  if(texture(textureAAfficher,vec2(u,v)).x>0.35) {
+      	p.z = texture(textureAAfficher,vec2(u,v)).x;
+  }else{
+      	p.z=0.35;
+  }
+
+
+  //normalView = normalize(normalMat*);
+  tangentView = normalize(normalMat*vec3(1.0,1.0,0.0));
+
+
+
+
+  
+  //float d1 = texture(textureAAfficher,position.xy*0.5+0.5).z;
+ // vec3 newpos = vec3(p.x, p.y, d1);
+//  eyeView     = normalize((mdvMat*vec4(p,1.0)).xyz);
   normalView  = normalize(normalMat*getNormal());
 
-   gl_Position = projMat*mdvMat*vec4(newpos,1.0);
+  gl_Position = projMat*mdvMat*vec4(p,1.0);
   //tangentView = normalize(normalMat*tangent);
-  
+  pos = gl_Position;
   //uvcoord     = coord*5.0;
   //shadowcoord  = mvpDepthMat *vec4(position,1)*0.5+0.5;
 }
