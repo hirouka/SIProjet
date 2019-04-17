@@ -1,1 +1,2 @@
-sim
+Projet de synthèse d'image 
+
